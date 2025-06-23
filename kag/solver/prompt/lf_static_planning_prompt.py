@@ -176,7 +176,6 @@ class RetrieverLFStaticPlanningPrompt(PromptABC):
             }}   
                 """
         super().__init__(**kwargs)
-
         self.schema_helper: SchemaUtils = SchemaUtils(
             LogicFormConfiguration(
                 {

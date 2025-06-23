@@ -32,7 +32,8 @@ class SearchClient(Client):
         req = TextSearchRequest(
             self._project_id, query_string, label_constraints, topk, params
         )
-        records = self._rest_client.search_text_post(text_search_request=req)
+        # records = self._rest_client.search_text_post(text_search_request=req)
+        records = []
         return [idx_record_to_dict(record) for record in records]
 
     def search_vector(

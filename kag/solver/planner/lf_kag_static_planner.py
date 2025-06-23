@@ -164,6 +164,7 @@ class KAGLFStaticPlanner(PlannerABC):
             List[Task]: Generated task sequence
         """
         num_iteration = kwargs.get("num_iteration", 0)
+
         return await self.llm.ainvoke(
             {
                 "query": query,

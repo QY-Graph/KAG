@@ -214,13 +214,16 @@ class OpenSPGGraphApi(GraphApiABC):
             s_entity = self.convert_raw_data_to_node(
                 row[s_index], enable_cache=True, cached_map=cached_map
             )
+
             o_entity = self.convert_raw_data_to_node(
                 row[o_index], enable_cache=False, cached_map=cached_map
             )
+
             rel = self.convert_raw_data_to_rel(row[p_index], s_entity, o_entity)
             s_one_hop: OneHopGraphData = self._get_cached_one_hop_graph(
                 s_entity.biz_id, s_entity.type, cached_map
             )
+
             if rel.from_entity == s_entity:
                 update_cached_one_hop_rel(s_one_hop.out_relations, rel)
             else:
