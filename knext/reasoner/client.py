@@ -115,7 +115,6 @@ class ReasonerClient(Client):
             import pandas as pd
 
             df = pd.DataFrame(show_data)
-            print(df)
             df.to_csv(default_output_file, index=False)
 
     def query_node(self, label, id_value):
@@ -135,7 +134,6 @@ class ReasonerClient(Client):
 if __name__ == "__main__":
     sc = ReasonerClient("http://127.0.0.1:8887", 4)
     reason_schema = sc.get_reason_schema()
-    print(reason_schema)
     prop_set = sc.query_node("KQA.Others", "Panic_disorder")
     import time
 
@@ -146,5 +144,4 @@ if __name__ == "__main__":
         nid='["Panic_disorder"]',
         oid='["Anxiety_and_nervousness"]',
     )
-    print(ret)
     print(f"cost={time.time() - start_time}")

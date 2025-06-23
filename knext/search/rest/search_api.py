@@ -142,6 +142,7 @@ class SearchApi(object):
         # Authentication setting
         auth_settings = []  # noqa: E501
 
+
         return self.api_client.call_api(
             "/search/text",
             "POST",

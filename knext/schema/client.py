@@ -19,6 +19,8 @@ from knext.schema import rest
 from knext.schema.model.base import BaseSpgType, AlterOperationEnum, SpgTypeEnum
 from knext.schema.model.relation import Relation
 
+import json
+
 cache = knext.common.cache.SchemaCache()
 
 
@@ -41,11 +43,18 @@ class SchemaSession:
         self.__spg_types = {}
         self._init_spg_types()
 
+
+
     def _init_spg_types(self):
         """Query project schema and init SPG types in session."""
-        project_schema = self._rest_client.schema_query_project_schema_get(
-            self._project_id
-        )
+        # project_schema = self._rest_client.schema_query_project_schema_get(
+        #     self._project_id
+        # )
+
+        with open("/root/softwares/kag_project/KAG-master/kag/jiuyuansolver/schema3.py", 'r', encoding='utf-8') as file:
+            content = file.read()
+        project_schema = ApiClient().jiuyuan_deserialize(content, "ProjectSchema")
+
         for spg_type in project_schema.spg_types:
             spg_type_name = spg_type.basic_info.name.name
             type_class = BaseSpgType.by_type_enum(spg_type.spg_type_enum)

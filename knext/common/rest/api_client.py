@@ -155,7 +155,6 @@ class ApiClient(object):
         _host=None,
     ):
         config = self.configuration
-
         # header parameters
         header_params = header_params or {}
         header_params.update(self.default_headers)
@@ -233,6 +232,14 @@ class ApiClient(object):
                 match = re.search(r"charset=([a-zA-Z\-\d]+)[\s\;]?", content_type)
             encoding = match.group(1) if match else "utf-8"
             response_data.data = response_data.data.decode(encoding)
+
+        if response_type == "ProjectSchema":
+            try:
+                with open("/root/softwares/kag_project/KAG-master/kag/jiuyuansolver/schema3.py", "a", encoding="utf-8") as file:
+                    file.write(response_data.data)
+                print("写入成功")
+            except Exception as e:
+                print(f"写入文件时出错: {e}")
 
         # deserialize response data
         if response_type:
@@ -316,6 +323,17 @@ class ApiClient(object):
             data = json.loads(response.data)
         except ValueError:
             data = response.data
+
+        return self.__deserialize(data, response_type)
+
+    def jiuyuan_deserialize(self, response, response_type):
+        if response_type == "file":
+            pass
+
+        try:
+            data = json.loads(response)
+        except ValueError:
+            data = response
 
         return self.__deserialize(data, response_type)
 

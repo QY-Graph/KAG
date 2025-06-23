@@ -42,7 +42,6 @@ class ThinkerClient(Client):
         rep: ThinkerTaskResponse = self._rest_client.reason_thinker_post(
             thinker_task_request=req
         )
-        print(rep)
 
 
 if __name__ == "__main__":

@@ -22,6 +22,7 @@ from kag.tools.search_api.search_api_abc import SearchApiABC
 from kag.tools.algorithm_tool.graph_retriever.entity_linking import EntityLinking
 from kag.tools.algorithm_tool.ner import Ner
 from knext.schema.client import CHUNK_TYPE
+from kag.jiuyuansolver.pg_impl import PostgresDB
 
 logger = logging.getLogger()
 
@@ -103,6 +104,7 @@ class PprChunkRetriever(ToolABC):
                             "type": s.type,
                         }
                     )
+                
                 if len(start_node_set) == 0:
                     return scores
                 scores = self.graph_api.calculate_pagerank_scores(
@@ -138,23 +140,35 @@ class PprChunkRetriever(ToolABC):
                 doc_id = doc_id[0]
             else:
                 doc_score = doc_ids[doc_id]
+
+            db_config = {
+                    "host": "localhost",
+                    "port": 5432,
+                    "user": "wr",
+                    "password": "your_password",
+                    "database": "test"
+                }
+
+            db = PostgresDB(db_config)
+
             try:
-                node = self.graph_api.get_entity_prop_by_id(
-                    label=self.schema_helper.get_label_within_prefix(CHUNK_TYPE),
-                    biz_id=doc_id,
+                db.sync_connect()
+                node = db.sync_get_entity_prop_by_id(
+                    id = doc_id,
+                    node_type=self.schema_helper.get_label_within_prefix(CHUNK_TYPE), 
+                    table="graph_nodes"
                 )
-                node_dict = dict(node.items())
+                node_dict = dict(node[0])
                 return doc_id, ChunkData(
-                    content=node_dict["content"].replace("_split_0", ""),
-                    title=node_dict["name"].replace("_split_0", ""),
+                    content=node_dict["properties"]["content"].replace("_split_0", ""),
+                    title=node_dict["properties"]["name"].replace("_split_0", ""),
                     chunk_id=doc_id,
                     score=doc_score,
                 )
             except Exception as e:
-                logger.warning(
-                    f"{doc_id} get_entity_prop_by_id failed: {e}", exc_info=True
-                )
-
+                logger.error(f"搜索过程中出错: {str(e)}")
+            finally:
+                db.sync_close()
         limit_doc_ids = doc_ids[:top_k]
         doc_maps = {}
         with ThreadPoolExecutor() as executor:
@@ -234,25 +248,43 @@ class PprChunkRetriever(ToolABC):
             mention = data["candidate"].entity_name
 
             query_entity_vector = self.vectorize_model.vectorize(mention)
+            db_config = {
+                    "host": "localhost",
+                    "port": 5432,
+                    "user": "wr",
+                    "password": "your_password",
+                    "database": "test"
+                }
+            db = PostgresDB(db_config)
 
-            top_entities = self.el.search_api.search_vector(
-                label="Entity",
-                property_key="name",
-                query_vector=query_entity_vector,
-                topk=1,
-            )
-            for top_entity in top_entities:
-                score = top_entity["score"]
-                if score > 0.7:
-                    recalled_entity = EntityData()
-                    recalled_entity.score = top_entity["score"]
-                    recalled_entity.biz_id = top_entity["node"]["id"]
-                    recalled_entity.name = top_entity["node"]["name"]
-                    recalled_entity.type = get_recall_node_label(
-                        top_entity["node"]["__labels__"]
-                    )
-                    return [recalled_entity]
-            return []
+            try:
+                db.sync_connect()
+                top_entities = db.sync_find_most_similar_vector(
+                    node_type = "",
+                    property_key="name",
+                    vector=query_entity_vector,
+                    table="graph_nodes",
+                    threshold=-1,
+                    topk=1
+                )
+
+                for top_entity in top_entities:
+                    score = top_entity["score"]
+                    if score > 0.7:
+                        recalled_entity = EntityData()
+                        recalled_entity.score = top_entity["score"]
+                        recalled_entity.biz_id = top_entity["node_id"]
+                        recalled_entity.name = top_entity["name"]
+                        recalled_entity.type = get_recall_node_label(
+                            [top_entity["label"]]
+                        )
+                        return [recalled_entity]
+                return []
+
+            except Exception as e:
+                logger.error(f"搜索过程中出错: {str(e)}")
+            finally:
+                db.sync_close()
 
         # Use ThreadPoolExecutor to parallelize EL processing
         with ThreadPoolExecutor() as executor:
@@ -333,6 +365,7 @@ class PprChunkRetriever(ToolABC):
         )
 
         pagerank_start_time = time.time()
+
         if len(matched_entities):
             pagerank_res = self.calculate_pagerank_scores(
                 matched_entities, top_k=top_k * 20
