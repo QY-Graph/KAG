@@ -81,11 +81,6 @@ class SchemaSession:
                     name=spg_type_name, rest_model=spg_type
                 )
 
-        # print("self._spg_types")
-        # print(self._spg_types)
-
-        # print("self.__spg_types")
-        # print(self.__spg_types)
 
     @property
     def spg_types(self) -> Dict[str, BaseSpgType]:

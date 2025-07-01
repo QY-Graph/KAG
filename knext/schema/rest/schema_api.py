@@ -258,8 +258,6 @@ class SchemaApi(object):
 
         header_params = {}
 
-        print(query_params)
-
         form_params = []
         local_var_files = {}
 

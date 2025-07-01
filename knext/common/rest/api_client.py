@@ -217,12 +217,6 @@ class ApiClient(object):
             e.body = e.body.decode("utf-8") if six.PY3 else e.body
             raise e
 
-        if response_type == "ProjectSchema":
-            print(type(response_data.data))
-            print(response_data.data)
-            print(type(response_data))
-            print(response_data)
-
         content_type = response_data.getheader("content-type")
 
         self.last_response = response_data
@@ -239,13 +233,13 @@ class ApiClient(object):
             encoding = match.group(1) if match else "utf-8"
             response_data.data = response_data.data.decode(encoding)
 
-        if response_type == "ProjectSchema":
-            try:
-                with open("/root/softwares/kag_project/KAG-master/kag/jiuyuansolver/schema3.py", "a", encoding="utf-8") as file:
-                    file.write(response_data.data)
-                print("写入成功")
-            except Exception as e:
-                print(f"写入文件时出错: {e}")
+        # if response_type == "ProjectSchema":
+        #     try:
+        #         with open("/root/softwares/kag_project/KAG-master/kag/jiuyuansolver/schema3.py", "a", encoding="utf-8") as file:
+        #             file.write(response_data.data)
+        #         print("写入成功")
+        #     except Exception as e:
+        #         print(f"写入文件时出错: {e}")
 
         # deserialize response data
         if response_type:
