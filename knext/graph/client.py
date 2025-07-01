@@ -27,6 +27,11 @@ from jiuyuan_db.model.filter import SingleFilter, MemoryGraphFilter, VERTEX_TYPE
 from jiuyuan_db.job_config import AnalyticJobConfig, AnalyticJobConfigConstant, AnalyticJobEnum, AnalyticNode
 import json
 import os
+from kag.jiuyuansolver.import_logs import LogsImporter
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 class GraphClient(Client):
     """ """
@@ -36,6 +41,7 @@ class GraphClient(Client):
         self._rest_client: rest.GraphApi = rest.GraphApi(
             api_client=ApiClient(configuration=Configuration(host=host_addr))
         )
+        self.graphName="test624"
 
     def calculate_pagerank_scores(self, target_vertex_type, start_nodes: List[Dict]):
         """
@@ -74,7 +80,7 @@ class GraphClient(Client):
 
         try:
             session = jiuyuan_client.get_session()
-            graph = session.create_graph("test622", True)
+            graph = session.create_graph(self.graphName, True)
             graph_id = graph.graph_id
 
             start_ids = []
@@ -123,7 +129,7 @@ class GraphClient(Client):
             target_node_label = target_vertex_type.split('.')[-1]
             cypherQuery = "MATCH (n:%s) RETURN id(n) AS real_id, n.id as id" % (target_node_label)
             res = session.execute_query(graph_id=graph_id, query=cypherQuery)
-
+            
             id_mapping = {item[0]: item[1].strip('"') for item in res.get_result_list()}
 
             jyresp = [
@@ -153,7 +159,96 @@ class GraphClient(Client):
             enable_lead_to=lead_to_builder,
             token="openspg@8380255d4e49_"
         )
-        self._rest_client.graph_writer_graph_post(writer_graph_request=request)
+        # self._rest_client.graph_writer_graph_post(writer_graph_request=request)
+
+        nodes = sub_graph['resultNodes']
+        edges = sub_graph['resultEdges']
+
+        def escape_single_quote(s):
+            if "'" in s:
+                return s.replace("'", "\\'")  # 把单引号替换成转义后的单引号 \'
+            return s
+        def parse_and_format_properties(properties):
+            formatted_items = []
+            if not properties:
+                return ""
+            
+            for key, value in properties.items():
+                if isinstance(value, list):
+                    # 处理向量列表，保持原始格式
+                    vector_str = ', '.join([f"{num}" for num in value])
+                    formatted_items.append(f"{key}:[{vector_str}]")
+                elif isinstance(value, str):
+                    # 处理字符串，添加引号并处理换行
+                    escaped_value = value.replace('\n', ' ').replace("'", "\\'")
+                    formatted_items.append(f"{key}:'{escaped_value}'")
+            
+            return "," + ', '.join(formatted_items)
+
+        # 导入jygraph 构建图谱 
+        try:
+            jiuyuan_client = JiuyuanClient(host='localhost',
+                                port=12321,
+                                user='wr',
+                                password='',
+                                database_name='test')
+            session = jiuyuan_client.get_session()
+            graph = session.create_graph(self.graphName, True)
+            graph_id = graph.graph_id
+            for node in nodes:
+                node_label = node['label'].split('.')[-1]
+                node_id = node['id']
+                node_name = node['name']
+                node_properties = node['properties']
+                cur_labels = str(session.get_labels(graph_id))
+                if node_label in cur_labels:
+                    pass
+                else:
+                    session.create_vertex_label(graph_id, node_label)
+                cypherQuery = "MERGE (n:%s{id: '%s', name: '%s'%s}) RETURN n AS n" % (node_label, escape_single_quote(node_id), escape_single_quote(node_name),parse_and_format_properties(node_properties))
+                session.execute_query(graph_id=graph_id, query=cypherQuery)
+            for edge in edges:
+                from_label = edge['fromType'].split('.')[-1]
+                from_id = edge['from']
+                to_label = edge['toType'].split('.')[-1]
+                to_id = edge['to']
+                edge_label = edge['label'].split('.')[-1]
+                edge_id=edge['id']
+                edge_properties = edge['properties']
+                cur_labels = str(session.get_labels(graph_id))
+                if edge_label in cur_labels:
+                    pass
+                else:
+                    session.create_edge_label(graph_id, edge_label)
+
+                cypherQuery = "MATCH (from:%s), (to:%s) where from.id='%s' and to.id='%s' MERGE (from)-[r:%s {id: %s%s}]->(to) RETURN r AS r" % (from_label, to_label, escape_single_quote(from_id), escape_single_quote(to_id), edge_label, edge_id, parse_and_format_properties(edge_properties))
+                
+                session.execute_query(graph_id=graph_id, query=cypherQuery)
+        except Exception as e:
+            print(f"An error occurred: {e}")
+        finally:
+            jiuyuan_client.release_session(session)
+
+        db_config = {
+            "host": "localhost",
+            "port": 5432,
+            "user": "wr",
+            "password": "your_password",
+            "database": "test"
+        }
+
+        importer = LogsImporter(db_config)
+
+        try:
+            importer.sync_connect()
+            nodes, edges = importer._process_subgraph_data(nodes, edges)
+            importer.db.sync_import_subgraph({"nodes": nodes, "edges": edges})
+
+        except Exception as e:
+            logger.error(f"Error during import: {str(e)}")
+        finally:
+            importer.sync_close()
+
 
     def query_vertex(self, type_name: str, biz_id: str):
         request = QueryVertexRequest(

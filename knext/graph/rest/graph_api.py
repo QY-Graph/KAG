@@ -30,8 +30,6 @@ import six
 
 from knext.common.rest.api_client import ApiClient
 from knext.common.rest.exceptions import ApiTypeError, ApiValueError  # noqa: F401
-from jiuyuan_db.client.client import JiuyuanClient
-from kag.jiuyuansolver.import_logs import LogsImporter
 
 import logging
 
@@ -48,11 +46,6 @@ class GraphApi(object):
         if api_client is None:
             api_client = ApiClient()
         self.api_client = api_client
-        self.jiuyuan_client=JiuyuanClient(host='localhost',
-                              port=12321,
-                              user='wr',
-                              password='',
-                              database_name='test')
 
     def graph_delete_edge_post(self, **kwargs):  # noqa: E501
         """delete_edge  # noqa: E501
@@ -720,100 +713,7 @@ class GraphApi(object):
         body_params = None
         if "writer_graph_request" in local_var_params:
             body_params = local_var_params["writer_graph_request"]
-            
-        res_text = str(body_params)
-        try:
-            with open("/root/softwares/kag_project/KAG-master/kag/examples/TwoWikiTest/logs.txt", "a", encoding="utf-8") as file:
-                file.write(res_text)
-            print("写入成功")
-        except Exception as e:
-            print(f"写入文件时出错: {e}")
-        def escape_single_quote(s):
-            if "'" in s:
-                return s.replace("'", "\\'")  # 把单引号替换成转义后的单引号 \'
-            return s
-        def parse_and_format_properties(properties):
-            formatted_items = []
-            if not properties:
-                return ""
-            
-            for key, value in properties.items():
-                if isinstance(value, list):
-                    # 处理向量列表，保持原始格式
-                    vector_str = ', '.join([f"{num}" for num in value])
-                    formatted_items.append(f"{key}:[{vector_str}]")
-                elif isinstance(value, str):
-                    # 处理字符串，添加引号并处理换行
-                    escaped_value = value.replace('\n', ' ').replace("'", "\\'")
-                    formatted_items.append(f"{key}:'{escaped_value}'")
-            
-            return "," + ', '.join(formatted_items)
         
-
-        nodes = body_params.sub_graph['resultNodes']
-        edges = body_params.sub_graph['resultEdges']
-
-
-        # 导入jygraph 构建图谱 
-        try:
-            session = self.jiuyuan_client.get_session()
-            graph = session.create_graph("test622", True)
-            graph_id = graph.graph_id
-            for node in nodes:
-                node_label = node['label'].split('.')[-1]
-                node_id = node['id']
-                node_name = node['name']
-                node_properties = node['properties']
-                cur_labels = str(session.get_labels(graph_id))
-                if node_label in cur_labels:
-                    pass
-                else:
-                    session.create_vertex_label(graph_id, node_label)
-                cypherQuery = "MERGE (n:%s{id: '%s', name: '%s'%s}) RETURN n AS n" % (node_label, escape_single_quote(node_id), escape_single_quote(node_name),parse_and_format_properties(node_properties))
-                session.execute_query(graph_id=graph_id, query=cypherQuery)
-            for edge in edges:
-                from_label = edge['fromType'].split('.')[-1]
-                from_id = edge['from']
-                to_label = edge['toType'].split('.')[-1]
-                to_id = edge['to']
-                edge_label = edge['label'].split('.')[-1]
-                edge_id=edge['id']
-                edge_properties = edge['properties']
-                cur_labels = str(session.get_labels(graph_id))
-                if edge_label in cur_labels:
-                    pass
-                else:
-                    session.create_edge_label(graph_id, edge_label)
-
-                cypherQuery = "MATCH (from:%s), (to:%s) where from.id='%s' and to.id='%s' MERGE (from)-[r:%s {id: %s%s}]->(to) RETURN r AS r" % (from_label, to_label, escape_single_quote(from_id), escape_single_quote(to_id), edge_label, edge_id, parse_and_format_properties(edge_properties))
-                
-                session.execute_query(graph_id=graph_id, query=cypherQuery)
-        except Exception as e:
-            print(f"An error occurred: {e}")
-        finally:
-            self.jiuyuan_client.release_session(session)
-
-        db_config = {
-            "host": "localhost",
-            "port": 5432,
-            "user": "wr",
-            "password": "your_password",
-            "database": "test"
-        }
-
-        importer = LogsImporter(db_config)
-
-        try:
-            importer.sync_connect()
-            nodes, edges = importer._process_subgraph_data(nodes, edges)
-            importer.db.sync_import_subgraph({"nodes": nodes, "edges": edges})
-
-        except Exception as e:
-            logger.error(f"Error during import: {str(e)}")
-        finally:
-            importer.sync_close()
-
-
         # HTTP header `Accept`
         header_params["Accept"] = self.api_client.select_header_accept(
             ["application/json"]

@@ -31,4 +31,5 @@ class EvaFor2wiki:
         return answer
 if __name__ == "__main__":
     evalObj = EvaFor2wiki()
-    evalObj.qa("中国为什么宣布加强对部分稀土相关物项的出口管制?")
+    # evalObj.qa("中国为什么宣布加强对部分稀土相关物项的出口管制?")
+    evalObj.qa(" 新加坡如何实现海军的现代化?")

@@ -217,6 +217,12 @@ class ApiClient(object):
             e.body = e.body.decode("utf-8") if six.PY3 else e.body
             raise e
 
+        if response_type == "ProjectSchema":
+            print(type(response_data.data))
+            print(response_data.data)
+            print(type(response_data))
+            print(response_data)
+
         content_type = response_data.getheader("content-type")
 
         self.last_response = response_data
@@ -329,7 +335,6 @@ class ApiClient(object):
     def jiuyuan_deserialize(self, response, response_type):
         if response_type == "file":
             pass
-
         try:
             data = json.loads(response)
         except ValueError:
