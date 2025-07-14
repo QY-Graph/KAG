@@ -41,7 +41,7 @@ class GraphClient(Client):
         self._rest_client: rest.GraphApi = rest.GraphApi(
             api_client=ApiClient(configuration=Configuration(host=host_addr))
         )
-        self.graphName="test624"
+        self.graphName="test708"
 
     def calculate_pagerank_scores(self, target_vertex_type, start_nodes: List[Dict]):
         """
