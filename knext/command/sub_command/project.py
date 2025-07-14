@@ -33,6 +33,9 @@ from kag.common.vectorize_model.vectorize_model_config_checker import (
 )
 from shutil import copy2
 
+from kag.jiuyuansolver.jygraph_apiclient import JygraphClient
+from knext.common.rest import ApiClient
+
 try:
     import kag_ant
 except ImportError:
@@ -171,8 +174,14 @@ def create_project(
         sys.exit()
 
     if host_addr:
-        client = ProjectClient(host_addr=host_addr)
-        project = client.create(name=name, namespace=namespace, config=json.dumps(config))
+        # client = ProjectClient(host_addr=host_addr)
+        # project = client.create(name=name, namespace=namespace, config=json.dumps(config))
+
+        BASE_URL = 'http://172.22.162.15:8090'  # 替换为实际API域名
+        client = JygraphClient(BASE_URL)
+        result = client.create_project(name=name, namespace=namespace, config=json.dumps(config))
+        response_data = result.decode("utf-8")
+        project = ApiClient().jiuyuan_deserialize(response_data, "Project")
 
         if project and project.id:
             project_id = project.id
@@ -252,7 +261,11 @@ def update_project(proj_path):
         sys.exit()
 
     logger.info(f"project id: {env.id}")
-    client.update(id=env.id, config=json.dumps(env._config))
+    # client.update(id=env.id, config=json.dumps(env._config))
+    BASE_URL = 'http://172.22.162.15:8090'  # 替换为实际API域名
+    client = JygraphClient(BASE_URL)
+    client.update_project(id=env.id, config=json.dumps(env._config))
+
     click.secho(
         f"Project [{env.name}] with namespace [{env.namespace}] was successfully updated from [{proj_path}].",
         fg="bright_green",

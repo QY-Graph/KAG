@@ -688,22 +688,20 @@ class PostgresDB:
         except Exception as e:
             logger.error(f"Failed to batch insert nodes: {str(e)}")
             raise
+            
+    def validate_edge_data(self, edge: Dict[str, Any]) -> bool:
+        return bool(edge.get("source_id")) and bool(edge.get("target_id"))
 
     async def batch_insert_edges(self, edges: List[Dict[str, Any]]) -> None:
-        """
-        批量插入边数据
-        
-        Args:
-            edges: 边数据列表，每个边包含：
-                  - source_id: 源节点ID
-                  - target_id: 目标节点ID
-                  - edge_type: 边类型
-                  - properties: 边属性
-                  - vector: 向量数据（可选）
-        """
         if not edges:
             return
             
+        # 过滤掉无效的边数据
+        valid_edges = [edge for edge in edges if self.validate_edge_data(edge)]
+        
+        if len(valid_edges) != len(edges):
+            logger.warning(f"Filtered out {len(edges) - len(valid_edges)} invalid edges")
+        
         query = """
         INSERT INTO graph_edges (source_id, target_id, edge_type, properties, name_vector, desc_vector, content_vector)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -722,9 +720,9 @@ class PostgresDB:
                             edge.get("name_vector"),
                             edge.get("desc_vector"),
                             edge.get("content_vector")
-                        ) for edge in edges]
+                        ) for edge in valid_edges]
                     )
-            logger.info(f"Successfully inserted {len(edges)} edges")
+            logger.info(f"Successfully inserted {len(valid_edges)} edges")
         except Exception as e:
             logger.error(f"Failed to batch insert edges: {str(e)}")
             raise
@@ -746,6 +744,12 @@ class PostgresDB:
         if not edges:
             return
         
+        # 过滤掉无效的边数据
+        valid_edges = [edge for edge in edges if self.validate_edge_data(edge)]
+        
+        if len(valid_edges) != len(edges):
+            logger.warning(f"Filtered out {len(edges) - len(valid_edges)} invalid edges")
+
         # 同步版本的SQL查询（使用%s占位符）
         query = """
         INSERT INTO graph_edges (source_id, target_id, edge_type, properties, name_vector, desc_vector, content_vector)
@@ -767,11 +771,11 @@ class PostgresDB:
                         edge.get("desc_vector"),
                         edge.get("content_vector")
                     )
-                    for edge in edges
+                    for edge in valid_edges
                 ]
                 cur.executemany(query, params)
                 self.conn.commit()
-            logger.info(f"Successfully inserted {len(edges)} edges")
+            logger.info(f"Successfully inserted {len(valid_edges)} edges")
         except Exception as e:
             logger.error(f"Failed to batch insert edges: {str(e)}")
             raise
@@ -787,13 +791,19 @@ class PostgresDB:
                      - edges: 边列表
         """
         try:
-            
+
             # 导入节点
             if "nodes" in subgraph:
                 await self.batch_insert_nodes(subgraph["nodes"])
             
             # 导入边
             if "edges" in subgraph:
+                edges = subgraph["edges"]
+                valid_edges = [edge for edge in edges if self.validate_edge_data(edge)]
+                if len(valid_edges) != len(edges):
+                    logger.warning(f"Found {len(edges) - len(valid_edges)} invalid edges, they will be skipped")
+                subgraph["edges"] = valid_edges
+
                 await self.batch_insert_edges(subgraph["edges"])
                 
             logger.info("Successfully imported subgraph data")
@@ -812,12 +822,19 @@ class PostgresDB:
                     - edges: 边列表
         """
         try:
+
             # 导入节点
             if "nodes" in subgraph:
                 self.sync_batch_insert_nodes(subgraph["nodes"])
             
             # 导入边
             if "edges" in subgraph:
+                edges = subgraph["edges"]
+                valid_edges = [edge for edge in edges if self.validate_edge_data(edge)]
+                if len(valid_edges) != len(edges):
+                    logger.warning(f"Found {len(edges) - len(valid_edges)} invalid edges, they will be skipped")
+                subgraph["edges"] = valid_edges
+
                 self.sync_batch_insert_edges(subgraph["edges"])
                 
             logger.info("Successfully imported subgraph data")

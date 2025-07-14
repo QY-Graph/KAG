@@ -19,7 +19,7 @@ from knext.schema import rest
 from knext.schema.model.base import BaseSpgType, AlterOperationEnum, SpgTypeEnum
 from knext.schema.model.relation import Relation
 
-from kag.jiuyuansolver.jygraph_apiclient import ProjectSchemaClient
+from kag.jiuyuansolver.jygraph_apiclient import JygraphClient
 
 import json
 
@@ -54,17 +54,14 @@ class SchemaSession:
         # )
 
         BASE_URL = 'http://172.22.162.15:8090'  # 替换为实际API域名
-        client = ProjectSchemaClient(BASE_URL)
+        client = JygraphClient(BASE_URL)
         response_data = None
         try:
-            project_id = '1' 
-            result = client.query_project_schema(project_id)
+            result = client.query_project_schema(self._project_id)
             response_data = result.decode("utf-8")
         except Exception as e:
             print(f"查询失败: {e}")    
 
-        # with open("/root/softwares/kag_project/KAG-master/kag/jiuyuansolver/schema2.py", 'r', encoding='utf-8') as file:
-        #     content = file.read()
         project_schema = ApiClient().jiuyuan_deserialize(response_data, "ProjectSchema")
 
         for spg_type in project_schema.spg_types:
@@ -80,7 +77,6 @@ class SchemaSession:
                 self._spg_types[spg_type_name] = type_class(
                     name=spg_type_name, rest_model=spg_type
                 )
-
 
     @property
     def spg_types(self) -> Dict[str, BaseSpgType]:
@@ -141,7 +137,6 @@ class SchemaSession:
             schema_draft.append(spg_type.to_rest())
         if len(schema_draft) == 0:
             return
-
         request = rest.SchemaAlterRequest(
             project_id=self._project_id, schema_draft=rest.SchemaDraft(schema_draft)
         )
@@ -151,7 +146,11 @@ class SchemaSession:
             print(request)
         else:
             print(f"Committing schema: set {key}=1 to dump the schema")
-        self._rest_client.schema_alter_schema_post(schema_alter_request=request)
+        # self._rest_client.schema_alter_schema_post(schema_alter_request=request)
+
+        BASE_URL = 'http://172.22.162.15:8090'  # 替换为实际API域名
+        client = JygraphClient(BASE_URL)
+        client.alter_schema(request)
 
 
 class SchemaClient(Client):
@@ -164,8 +163,13 @@ class SchemaClient(Client):
             api_client=ApiClient(configuration=Configuration(host=host_addr))
         )
     def query_spg_type(self, spg_type_name: str) -> BaseSpgType:
-        """Query SPG type by name."""
-        rest_model = self._rest_client.schema_query_spg_type_get(spg_type_name)
+        """Query SPG type by name.""" 
+        # rest_model = self._rest_client.schema_query_spg_type_get(spg_type_name)
+        BASE_URL = 'http://172.22.162.15:8090'  # 替换为实际API域名
+        client = JygraphClient(BASE_URL)
+        result = client.query_SpgType(spg_type_name) 
+        response_data = result.decode("utf-8")
+        rest_model = ApiClient().jiuyuan_deserialize(response_data, "BaseSpgType")
         type_class = BaseSpgType.by_type_enum(f"{rest_model.spg_type_enum}")
 
         if rest_model.spg_type_enum == SpgTypeEnum.Concept:

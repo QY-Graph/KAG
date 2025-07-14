@@ -233,14 +233,6 @@ class ApiClient(object):
             encoding = match.group(1) if match else "utf-8"
             response_data.data = response_data.data.decode(encoding)
 
-        # if response_type == "ProjectSchema":
-        #     try:
-        #         with open("/root/softwares/kag_project/KAG-master/kag/jiuyuansolver/schema3.py", "a", encoding="utf-8") as file:
-        #             file.write(response_data.data)
-        #         print("写入成功")
-        #     except Exception as e:
-        #         print(f"写入文件时出错: {e}")
-
         # deserialize response data
         if response_type:
             return_data = self.deserialize(response_data, response_type)
