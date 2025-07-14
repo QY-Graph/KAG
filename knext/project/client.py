@@ -62,8 +62,6 @@ class ProjectClient(Client):
         return None
 
     def create(self, name: str, namespace: str, config: str, desc: str = None, auto_schema=False):
-        print("config")
-        print(config)
         project_create_request = rest.ProjectCreateRequest(
             name=name, desc=desc, namespace=namespace, config=config, auto_schema=auto_schema
         )
